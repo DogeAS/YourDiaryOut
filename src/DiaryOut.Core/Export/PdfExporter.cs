@@ -30,6 +30,10 @@ public static class PdfExporter
         BuildDocument(contexts).GeneratePdf(filePath);
     }
 
+    /// <summary>PDF 图片直接封装进文件：从原始字节缓存读取，不依赖磁盘图片目录。</summary>
+    private static byte[]? GetImageBytes(DiaryExportContext ctx, long imageId) =>
+        ctx.DownloadedImages.TryGetValue(imageId, out var img) ? img.Data : null;
+
     private static void EnsureInitialized()
     {
         if (_fontInitDone)
@@ -116,16 +120,11 @@ public static class PdfExporter
                         .FontColor(Colors.Grey.Medium);
                     break;
                 case ImageBlock image:
-                    if (ctx.LocalImages.TryGetValue(image.ImageId, out var relPath))
+                    var imgBytes = GetImageBytes(ctx, image.ImageId);
+                    if (imgBytes is not null)
                     {
-                        var fullPath = Path.Combine(ctx.Folder, relPath.Replace('/', Path.DirectorySeparatorChar));
-                        if (File.Exists(fullPath))
-                        {
-                            column.Item().PaddingVertical(4).MaxWidth(420)
-                                .Image(File.ReadAllBytes(fullPath));
-                            break;
-                        }
-                        ctx.FailedImages.TryAdd(image.ImageId, "本地图片文件缺失");
+                        column.Item().PaddingVertical(4).MaxWidth(420).Image(imgBytes);
+                        break;
                     }
                     var reason = ctx.FailedImages.TryGetValue(image.ImageId, out var r) ? r : "未下载";
                     column.Item().Padding(6).Background(Colors.Red.Lighten5)

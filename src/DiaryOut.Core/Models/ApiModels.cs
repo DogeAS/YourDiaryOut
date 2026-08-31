@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DiaryOut.Core.Models;
@@ -44,12 +45,38 @@ public sealed class DiaryEntry
 
 public sealed class ImageInfo
 {
-    [JsonPropertyName("image_id")] public long ImageId { get; set; }
-    [JsonPropertyName("width")] public int Width { get; set; }
-    [JsonPropertyName("height")] public int Height { get; set; }
+
+    /// <summary>宽高兼容数字或字符串（如 128 或 "128"），失败回退 null。</summary>
+    [JsonPropertyName("width")]
+    [JsonConverter(typeof(FlexibleIntConverter))]
+    public int? Width { get; set; }
+
+    [JsonPropertyName("height")]
+    [JsonConverter(typeof(FlexibleIntConverter))]
+    public int? Height { get; set; }
 
     /// <summary>保留未建模字段（服务端可能新增）。</summary>
-    [JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Extra { get; set; }
+    [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; set; }
+}
+
+/// <summary>接受 JSON 整数、小数（820.0）或数字字符串的可空 int 转换器。</summary>
+public sealed class FlexibleIntConverter : JsonConverter<int?>
+{
+    public override int? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.TokenType switch
+        {
+            JsonTokenType.Number when reader.TryGetInt32(out var n) => n,
+            JsonTokenType.Number when reader.TryGetDouble(out var dbl) => (int)Math.Round(dbl),
+            JsonTokenType.String when double.TryParse(reader.GetString(), out var s) => (int)Math.Round(s),
+            JsonTokenType.Null => null,
+            _ => null,
+        };
+
+    public override void Write(Utf8JsonWriter writer, int? value, JsonSerializerOptions options)
+    {
+        if (value.HasValue) writer.WriteNumberValue(value.Value);
+        else writer.WriteNullValue();
+    }
 }
 
 public sealed class UserConfig

@@ -27,7 +27,7 @@ public static partial class DiaryContentParser
     [GeneratedRegex(@"^\[图([^\]]*)\]\s*$")]
     private static partial Regex ImageLineRegex();
 
-    [GeneratedRegex(@"^\[(\d{1,2}:\d{2})\]\s*$")]
+    [GeneratedRegex(@"^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*$")]
     private static partial Regex TimeLineRegex();
 
     public static IReadOnlyList<ContentBlock> Parse(string? content)

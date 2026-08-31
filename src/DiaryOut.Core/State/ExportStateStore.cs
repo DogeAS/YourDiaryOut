@@ -57,9 +57,7 @@ public sealed class ExportStateStore
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
     }
 
-    /// <summary>该篇未变化且目录仍存在 → 可跳过。</summary>
-    public bool IsUnchanged(DiaryEntry diary, string hash, string outputDir) =>
-        Entries.TryGetValue(diary.Id.ToString(), out var state)
-        && state.Hash == hash
-        && Directory.Exists(Path.Combine(outputDir, state.Folder));
+    /// <summary>该格式条目未变化（hash 一致）→ 可跳过。条目 key 形如 "markdown/123"。</summary>
+    public bool IsUnchanged(string entryKey, string hash) =>
+        Entries.TryGetValue(entryKey, out var state) && state.Hash == hash;
 }

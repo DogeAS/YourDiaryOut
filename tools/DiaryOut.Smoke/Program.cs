@@ -1,11 +1,12 @@
 using DiaryOut.Core.Api;
 using DiaryOut.Core.Export;
 
-// 用法：dotnet run -- <email> <password> <outputDir>
-// 冒烟测试：登录 → 全量同步 → 全格式导出 → 打印结果。凭据仅来自命令行参数，不落盘。
+// 用法：dotnet run -- <email> <password> <outputDir> [fromDate toDate]
+// 冒烟测试：登录 → 同步 → 全格式导出 → 打印结果。凭据仅来自命令行参数，不落盘。
+// 可选 fromDate/toDate（yyyy-MM-dd）限制范围，便于小样本验证。
 if (args.Length < 3)
 {
-    Console.WriteLine("usage: DiaryOut.Smoke <email> <password> <outputDir>");
+    Console.WriteLine("usage: DiaryOut.Smoke <email> <password> <outputDir> [fromDate toDate]");
     return 2;
 }
 
@@ -28,6 +29,12 @@ var options = new ExportOptions
     ExportPdfPerDiary = true,
     ExportMergedPdf = true,
 };
+if (args.Length >= 5
+    && DateOnly.TryParse(args[3], out var from) && DateOnly.TryParse(args[4], out var to))
+{
+    options.FromDate = from;
+    options.ToDate = to;
+}
 var progress = new Progress<ExportProgress>(p => Console.WriteLine($"    {p.Message}"));
 var result = await new ExportService().RunAsync(client, options, progress);
 

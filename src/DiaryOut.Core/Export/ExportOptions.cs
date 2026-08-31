@@ -18,16 +18,24 @@ public sealed class ExportOptions
 
     public bool ExportHtml { get; set; } = true;
     public bool ExportMarkdown { get; set; } = true;
-    /// <summary>每篇日记一个 PDF。</summary>
+    /// <summary>每篇日记一个 PDF（图片封装在 PDF 内，不单独存图片）。</summary>
     public bool ExportPdfPerDiary { get; set; }
-    /// <summary>全部导出日记合并为一个 PDF。</summary>
+    /// <summary>全部导出日记合并为一个 PDF（图片封装在 PDF 内）。</summary>
     public bool ExportMergedPdf { get; set; }
 
     /// <summary>请求最小间隔（毫秒，限速）。</summary>
     public int MinRequestIntervalMs { get; set; } = 500;
     /// <summary>失败重试次数（指数退避）。</summary>
     public int MaxRetries { get; set; } = 3;
+
+    // ---- 分格式子目录名 ----
+    public string MarkdownFolderName { get; set; } = "markdown";
+    public string HtmlFolderName { get; set; } = "html";
+    public string PdfFolderName { get; set; } = "pdf";
 }
+
+/// <summary>导出的内容格式。</summary>
+public enum ExportFormat { Markdown, Html, Pdf }
 
 public sealed class FailureItem
 {
@@ -52,18 +60,35 @@ public sealed class ExportResult
     public string OutputDir { get; set; } = "";
 }
 
-/// <summary>单篇日记处理上下文（解析结果 + 已下载图片）。</summary>
+/// <summary>
+/// 单篇日记处理上下文（解析结果 + 各格式的本地图片引用）。
+/// 每种格式（Markdown/Html/Pdf）有独立的图片目录与相对路径映射，互不影响，
+/// 因此同一篇的不同格式不会因彼此而误判"未变化"。
+/// </summary>
 public sealed class DiaryExportContext
 {
     public required Models.DiaryEntry Diary { get; init; }
     public required IReadOnlyList<Parsing.ContentBlock> Blocks { get; init; }
 
-    /// <summary>该篇日记的输出目录（绝对路径），由 ExportService 赋值。</summary>
-    public string Folder { get; set; } = "";
+    /// <summary>该篇日记名（"日期-标题"），用于各格式目录下的文件名。</summary>
+    public string BaseName { get; set; } = "";
 
-    /// <summary>image_id → 本地图片相对路径（如 images/123.jpg）；下载失败则无此项。</summary>
-    public Dictionary<long, string> LocalImages { get; } = new();
+    /// <summary>
+    /// 每个格式的独立图片映射：image_id → 该格式目录内的相对路径（如 "images/123.jpg"）。
+    /// PDF 也存（其图片会先落盘到 pdf/images 供封装，见 ExportService）。
+    /// </summary>
+    public Dictionary<ExportFormat, Dictionary<long, string>> LocalImages { get; } = new()
+    {
+        [ExportFormat.Markdown] = new(),
+        [ExportFormat.Html] = new(),
+        [ExportFormat.Pdf] = new(),
+    };
 
-    /// <summary>image_id → 下载失败原因。</summary>
+    /// <summary>image_id → 下载失败原因（下载一次，供所有格式复用）。</summary>
     public Dictionary<long, string> FailedImages { get; } = new();
+
+    /// <summary>下载成功后的原始字节缓存：image_id → (bytes, ext)，供多格式共用，避免重复下载。</summary>
+    public Dictionary<long, (byte[] Data, string Ext)> DownloadedImages { get; } = new();
+
+    public Dictionary<long, string> ImagesFor(ExportFormat format) => LocalImages[format];
 }

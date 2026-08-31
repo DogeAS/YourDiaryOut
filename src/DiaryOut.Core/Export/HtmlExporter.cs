@@ -55,7 +55,7 @@ public static class HtmlExporter
                     sb.Append("<div class=\"time\">").Append(Escape(time.Time)).Append("</div>");
                     break;
                 case ImageBlock image:
-                    if (ctx.LocalImages.TryGetValue(image.ImageId, out var relPath))
+                    if (ctx.ImagesFor(ExportFormat.Html).TryGetValue(image.ImageId, out var relPath))
                     {
                         sb.Append("<div class=\"photo\"><img src=\"")
                           .Append(Escape(relPath)).Append("\" alt=\"图片 ")

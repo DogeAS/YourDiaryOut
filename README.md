@@ -20,8 +20,11 @@ tools/DiaryOut.Smoke/ 冒烟测试控制台（凭据仅来自命令行参数，�
 | 图片下载 | `GET https://f.nideriji.cn/api/image/{user_id}/{image_id}/` |
 | 鉴权 | 请求头 `auth: token <JWT>` |
 
-正文格式：按行解析；`[HH:mm]` 为时间分段；`[图<image_id>]` 为图片占位符，与 sync 返回的
-`images` 元数据（`image_id/width/height`）按 id 匹配。
+正文格式：按行解析；`[HH:mm]` 或 `[HH:mm:ss]` 为时间分段；`[图<image_id>]` 为图片占位符，与 sync 返回的
+`images` 元数据（`image_id/width/height/lt`）按 id 匹配。
+
+> 注意：`images[].width/height` 服务端可能返回浮点数（如 `820.0`），模型已用
+> `FlexibleIntConverter` 兼容整数/小数/字符串，避免反序列化报错。
 
 ## 功能（对应需求基线）
 
@@ -31,18 +34,26 @@ tools/DiaryOut.Smoke/ 冒烟测试控制台（凭据仅来自命令行参数，�
 - 图片：原图下载到每篇的 `images/` 目录；失败显示占位文字并记入失败清单
 - 断点续传与去重：`state.json` 记录内容哈希，未变化跳过，变化重导；合并 PDF 会纳入未变化的日记
 - 限速（默认 500ms 间隔）、超时 30s、指数退避重试（默认 3 次）
-- 输出结构：
+- 输出结构（分格式子目录，各格式图片与文本独立存放，互不影响去重）：
 
 ```
 输出目录/
-  index.json      索引
-  failures.json   失败清单
-  state.json      断点/去重状态
-  日记合集.pdf    合并 PDF（可选）
-  2026-08-31-标题/
-    diary.html / diary.md / diary.pdf
+  index.json      索引（根目录）
+  failures.json   失败清单（根目录）
+  state.json      断点/去重状态（按 格式/日记id 记录哈希）
+  markdown/                   Markdown 格式
+    2026-08-31-标题.md        正文（图片处引用 images/123.jpg 或失败占位）
+    images/123.jpg            该格式的图片（按 image_id 编号）
+  html/                       HTML 格式
+    2026-08-31-标题.html
     images/123.jpg
+  pdf/                        PDF 格式（图片直接封装进文件，不单独存图）
+    2026-08-31-标题.pdf
+    日记合集.pdf              合并 PDF（可选）
 ```
+
+- 去重粒度：按「格式 + 日记 id」记录内容哈希，同一篇的 Markdown 未变化不影响其 HTML/PDF 的判断
+- 图片：每张图片下载一次（字节缓存），各文本格式写入各自 images 目录；PDF 直接把字节封装进文件
 
 ## 运行
 

@@ -41,7 +41,7 @@ public static class MarkdownExporter
                     sb.Append("**").Append(time.Time).AppendLine("**").AppendLine();
                     break;
                 case ImageBlock image:
-                    if (ctx.LocalImages.TryGetValue(image.ImageId, out var relPath))
+                    if (ctx.ImagesFor(ExportFormat.Markdown).TryGetValue(image.ImageId, out var relPath))
                     {
                         sb.Append("![](").Append(relPath).AppendLine(")").AppendLine();
                     }
