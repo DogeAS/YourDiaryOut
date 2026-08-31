@@ -43,6 +43,14 @@ public sealed class ExportService
         var diaries = Filter(sync.Diaries, options);
         if (diaries.Count == 0)
             Report(progress, 0, 0, "注意：按当前范围过滤后没有可导出的日记（检查日期/关键词/勾选条件）");
+
+        // 关键：sync 的 content 是截断摘要，需按 id 补拉完整正文（分批避免单次请求过大）
+        if (diaries.Count > 0)
+        {
+            Report(progress, diaries.Count, 0, $"正在拉取 {diaries.Count} 篇完整正文…");
+            await FetchFullContentsAsync(client, diaries, progress, ct).ConfigureAwait(false);
+        }
+
         var state = ExportStateStore.Load(options.OutputDir);
         var indexEntries = new List<object>();
 
@@ -311,6 +319,34 @@ public sealed class ExportService
             query = query.Where(d => selected.Contains(d.Id));
 
         return query.OrderBy(d => d.CreatedTime).ThenBy(d => d.Id).ToList();
+    }
+
+    /// <summary>
+    /// 分批按 id 拉取完整正文并覆盖到 sync 返回的日记对象上。
+    /// sync 的 content 是截断摘要（实测含图/长文被截断），完整正文必须走 all_by_ids。
+    /// 每批 50 个 id，避免单次 multipart 过大。
+    /// </summary>
+    private static async Task FetchFullContentsAsync(
+        NiderijiClient client, List<DiaryEntry> diaries,
+        IProgress<ExportProgress>? progress, CancellationToken ct)
+    {
+        const int batchSize = 50;
+        var byId = diaries.ToDictionary(d => d.Id);
+        var ids = diaries.Select(d => d.Id).ToList();
+
+        for (var start = 0; start < ids.Count; start += batchSize)
+        {
+            ct.ThrowIfCancellationRequested();
+            var batch = ids.Skip(start).Take(batchSize).ToList();
+            var full = await client.FetchDiariesByIdsAsync(batch, ct).ConfigureAwait(false);
+            foreach (var f in full)
+            {
+                if (byId.TryGetValue(f.Id, out var diary))
+                    diary.Content = f.Content; // 覆盖为完整正文
+            }
+            Report(progress, diaries.Count, Math.Min(start + batch.Count, diaries.Count),
+                $"已拉取完整正文 {Math.Min(start + batch.Count, diaries.Count)}/{diaries.Count}");
+        }
     }
 
     private static void Report(IProgress<ExportProgress>? progress, int total, int done, string message) =>

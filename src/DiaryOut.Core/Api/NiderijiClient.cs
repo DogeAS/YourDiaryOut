@@ -127,6 +127,34 @@ public sealed class NiderijiClient : IDisposable
     }
 
     /// <summary>
+    /// 按 id 批量拉取完整日记正文。
+    /// 关键事实（2026-08-31 实测）：/api/v2/sync/ 的 content 是截断的摘要，
+    /// 完整正文必须走 /api/diary/all_by_ids/{user_id}/（multipart 字段 diary_ids，逗号分隔）。
+    /// </summary>
+    public async Task<List<DiaryEntry>> FetchDiariesByIdsAsync(
+        IReadOnlyList<long> ids, CancellationToken ct = default)
+    {
+        if (ids.Count == 0) return new List<DiaryEntry>();
+        if (UserId == 0) throw new AuthExpiredException("缺少登录态");
+
+        var json = await SendWithRetryAsync(() =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBase}/api/diary/all_by_ids/{UserId}/");
+            req.Content = new MultipartFormDataContent
+            {
+                { new StringContent(string.Join(",", ids)), "diary_ids" },
+            };
+            return req;
+        }, requireAuth: true, ct).ConfigureAwait(false);
+
+        var resp = JsonSerializer.Deserialize<SyncResponse>(json, JsonOptions)
+                   ?? throw new NiderijiApiException(-1, "按 id 拉取响应解析失败");
+        if (resp.Error != 0)
+            throw new NiderijiApiException(resp.Error, $"按 id 拉取失败（错误码 {resp.Error}）");
+        return resp.Diaries;
+    }
+
+    /// <summary>
     /// 下载图片。返回字节与扩展名；HTTP/网络错误返回 null 并记录失败原因。
     /// </summary>
     public async Task<(byte[] Data, string Extension)?> DownloadImageAsync(
