@@ -28,8 +28,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        OutputDirBox.Text = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DiaryOut");
+        OutputDirBox.Text = Path.Combine(AppContext.BaseDirectory, "Output");
     }
 
     private void PasswordBox_KeyDown(object sender, KeyEventArgs e)
@@ -109,7 +108,6 @@ public partial class MainWindow : Window
         if (!IsLoaded)
             return;
         FromDatePicker.IsEnabled = ToDatePicker.IsEnabled = ScopeDateRadio.IsChecked == true;
-        KeywordBox.IsEnabled = ScopeKeywordRadio.IsChecked == true;
         DiaryListBox.IsEnabled = ScopeSelectedRadio.IsChecked == true;
     }
 
@@ -184,10 +182,6 @@ public partial class MainWindow : Window
                 MessageBox.Show(this, "开始日期不能晚于结束日期", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-        }
-        else if (ScopeKeywordRadio.IsChecked == true)
-        {
-            options.Keyword = KeywordBox.Text.Trim();
         }
         else if (ScopeSelectedRadio.IsChecked == true)
         {

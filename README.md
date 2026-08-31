@@ -1,15 +1,20 @@
 # DiaryOut
 
-从「你的日记」（nideriji.cn）自动导出日记（含图片）的 Windows 桌面工具，.NET 8 + WPF。
-仅用于本人账号的个人备份，默认限速请求。
+## 纯vibe coding产物，请注意。
 
-## 结构
+从「你的日记」（nideriji.cn）批量导出日记与图片的 Windows 桌面工具（.NET 8 + WPF）。
 
-```
-src/DiaryOut.Core/   核心库：API 客户端、内容解析、导出（HTML/Markdown/PDF）、断点状态
-src/DiaryOut.App/    WPF 桌面程序
-tools/DiaryOut.Smoke/ 冒烟测试控制台（凭据仅来自命令行参数，不落盘；未加入解决方案）
-```
+## 主要特性
+
+- **安全凭据**：Token 仅存于内存，绝不落盘。
+- **导出范围**：支持全部导出、按日期范围筛选或手动勾选。
+- **多格式支持**：
+  - **HTML**：内置独立简洁样式，支持离线浏览。
+  - **Markdown**：标准 Markdown 格式，图片相对路径引用。
+  - **PDF**：支持单篇日记 PDF 与全量合并 PDF（图片内嵌，中文字体优先微软雅黑）。
+- **图片处理**：原图自动下载并关联对应日记。
+- **断点续传 & 增量导出**：基于内容哈希去重，已导出且未修改的日记自动跳过。
+- **稳定性**：自带请求限速、超时与指数退避重试。
 
 ## 站点 API（2026-08-31 实测）
 
@@ -23,52 +28,27 @@ tools/DiaryOut.Smoke/ 冒烟测试控制台（凭据仅来自命令行参数，�
 正文格式：按行解析；`[HH:mm]` 或 `[HH:mm:ss]` 为时间分段；`[图<image_id>]` 为图片占位符，与 sync 返回的
 `images` 元数据（`image_id/width/height/lt`）按 id 匹配。
 
-> 注意：`images[].width/height` 服务端可能返回浮点数（如 `820.0`），模型已用
-> `FlexibleIntConverter` 兼容整数/小数/字符串，避免反序列化报错。
+> 注意：`images[].width/height` 服务端可能返回浮点数（如 `820.0`）
 
-## 功能（对应需求基线）
+## 输出目录结构
 
-- 程序内登录；token 只保存在当前进程内存中，绝不写盘；每次启动程序都必须重新输入账号密码
-- 导出范围：全部 / 日期范围 / 关键词 / 手动勾选
-- 导出格式：HTML（独立简洁样式，离线可看）、Markdown、单篇 PDF、合并 PDF（QuestPDF，中文字体优先微软雅黑）
-- 图片：原图下载到每篇的 `images/` 目录；失败显示占位文字并记入失败清单
-- 断点续传与去重：`state.json` 记录内容哈希，未变化跳过，变化重导；合并 PDF 会纳入未变化的日记
-- 限速（默认 500ms 间隔）、超时 30s、指数退避重试（默认 3 次）
-- 输出结构（分格式子目录，各格式图片与文本独立存放，互不影响去重）：
-
-```
-输出目录/
-  index.json      索引（根目录）
-  failures.json   失败清单（根目录）
-  state.json      断点/去重状态（按 格式/日记id 记录哈希）
-  markdown/                   Markdown 格式
-    2026-08-31-标题.md        正文（图片处引用 images/123.jpg 或失败占位）
-    images/123.jpg            该格式的图片（按 image_id 编号）
-  html/                       HTML 格式
-    2026-08-31-标题.html
-    images/123.jpg
-  pdf/                        PDF 格式（图片直接封装进文件，不单独存图）
-    2026-08-31-标题.pdf
-    日记合集.pdf              合并 PDF（可选）
+```text
+output/
+  index.json          # 日记索引元数据
+  failures.json       # 导出失败清单（若有）
+  state.json          # 断点与内容哈希状态
+  html/               # HTML 格式日记及图片
+  markdown/           # Markdown 格式日记及图片
+  pdf/                # 单篇 PDF 及合并 PDF
 ```
 
-- 去重粒度：按「格式 + 日记 id」记录内容哈希，同一篇的 Markdown 未变化不影响其 HTML/PDF 的判断
-- 图片：每张图片下载一次（字节缓存），各文本格式写入各自 images 目录；PDF 直接把字节封装进文件
+## 项目结构
 
-## 运行
-
-```powershell
-dotnet run --project src/DiaryOut.App
-```
-
-冒烟测试：
-
-```powershell
-dotnet run --project tools/DiaryOut.Smoke -- <email> <password> <outputDir>
-```
+- `src/DiaryOut.Core/`：核心库（API 通信、数据解析、导出逻辑与断点状态）。
+- `src/DiaryOut.App/`：WPF 桌面客户端。
+- `tools/DiaryOut.Smoke/`：命令行冒烟测试工具。
 
 ## 已知限制
 
-- 测试账号暂无含图片日记，图片下载链路已按前端 JS 行为实现，待真实图片数据验证
 - 天气/心情等元数据按 sync 实际返回字段导出，缺失时跳过
 - 登录遇验证码/风控时需稍后再试（站点对登录接口有频率限制，错误码 3）

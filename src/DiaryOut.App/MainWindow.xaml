@@ -63,12 +63,8 @@
                             <TextBlock Text="到" VerticalAlignment="Center"/>
                             <DatePicker x:Name="ToDatePicker" Width="120" Margin="6,0,0,0"/>
                         </DockPanel>
-                        <RadioButton x:Name="ScopeKeywordRadio" Content="按关键词搜索" GroupName="Scope"
-                                     Margin="0,4,0,0" Checked="ScopeRadio_Checked"/>
-                        <TextBox x:Name="KeywordBox" Margin="20,2,0,4" Height="26"
-                                 VerticalContentAlignment="Center" ToolTip="匹配标题与正文"/>
                         <RadioButton x:Name="ScopeSelectedRadio" Content="手动勾选日记" GroupName="Scope"
-                                     Checked="ScopeRadio_Checked"/>
+                                     Margin="0,4,0,0" Checked="ScopeRadio_Checked"/>
                         <DockPanel Margin="20,2,0,0">
                             <Button Content="刷新列表" DockPanel.Dock="Right" Padding="10,2"
                                     Margin="6,0,0,0" Click="RefreshListButton_Click"/>

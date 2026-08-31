@@ -33,16 +33,12 @@ public sealed class ExportService
         Report(progress, 0, 0, "正在同步日记数据…");
         var sync = await client.SyncAllAsync(ct).ConfigureAwait(false);
 
-        // 诊断：同步实际返回的数据规模与含图日记数，便于定位"导出很短/无图"
-        var totalDiaries = sync.Diaries.Count;
-        var withImages = sync.Diaries.Count(d => DiaryContentParser.ReferencedImageIds(
-            DiaryContentParser.Parse(d.Content)).Count > 0);
         Report(progress, 0, 0,
-            $"同步返回：日记 {totalDiaries} 篇（其中含图 {withImages} 篇），图片元数据 {sync.Images.Count} 条");
+            $"同步返回：日记 {sync.Diaries.Count} 篇，图片元数据 {sync.Images.Count} 条");
 
         var diaries = Filter(sync.Diaries, options);
         if (diaries.Count == 0)
-            Report(progress, 0, 0, "注意：按当前范围过滤后没有可导出的日记（检查日期/关键词/勾选条件）");
+            Report(progress, 0, 0, "注意：按当前范围过滤后没有可导出的日记（检查日期/勾选条件）");
 
         // 关键：sync 的 content 是截断摘要，需按 id 补拉完整正文（分批避免单次请求过大）
         if (diaries.Count > 0)
@@ -51,10 +47,13 @@ public sealed class ExportService
             await FetchFullContentsAsync(client, diaries, progress, ct).ConfigureAwait(false);
         }
 
+        var withImages = diaries.Count(d => DiaryContentParser.ReferencedImageIds(
+            DiaryContentParser.Parse(d.Content)).Count > 0);
+
         var state = ExportStateStore.Load(options.OutputDir);
         var indexEntries = new List<object>();
 
-        Report(progress, diaries.Count, 0, $"共 {diaries.Count} 篇日记待处理");
+        Report(progress, diaries.Count, 0, $"共 {diaries.Count} 篇日记待处理（其中含图 {withImages} 篇）");
         var done = 0;
 
         // 合并 PDF 用：收集所有（含未变化跳过的）日记上下文
@@ -305,14 +304,6 @@ public sealed class ExportService
                 DateOnly.TryParse(d.CreatedDate, out var date)
                 && (options.FromDate is not { } f || date >= f)
                 && (options.ToDate is not { } t || date <= t));
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.Keyword))
-        {
-            var keyword = options.Keyword.Trim();
-            query = query.Where(d =>
-                d.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || d.Content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         }
 
         if (options.SelectedIds is { Count: > 0 } selected)

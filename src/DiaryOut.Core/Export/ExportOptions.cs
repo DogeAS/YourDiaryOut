@@ -10,9 +10,6 @@ public sealed class ExportOptions
     public DateOnly? FromDate { get; set; }
     public DateOnly? ToDate { get; set; }
 
-    /// <summary>关键词过滤（匹配标题与正文，忽略大小写）。null/空 表示不过滤。</summary>
-    public string? Keyword { get; set; }
-
     /// <summary>手动选择的日记 id 集合；null 表示不按选择过滤。</summary>
     public HashSet<long>? SelectedIds { get; set; }
 
