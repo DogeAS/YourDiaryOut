@@ -25,7 +25,7 @@ public static class FileNameHelper
 
     /// <summary>日记目录名：日期-标题。</summary>
     public static string DiaryFolderName(Models.DiaryEntry diary) =>
-        $"{diary.CreatedDate}-{Sanitize(diary.Title)}";
+        $"{Sanitize(diary.CreatedDate)}-{Sanitize(diary.Title)}";
 
     /// <summary>在目录下取得不冲突的子目录名，重名时追加 " (2)"、" (3)"…。</summary>
     public static string EnsureUniqueFolder(string parentDir, string desiredName)
