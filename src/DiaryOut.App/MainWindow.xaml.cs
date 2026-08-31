@@ -30,38 +30,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         OutputDirBox.Text = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DiaryOut");
-        Loaded += MainWindow_Loaded;
-    }
-
-    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
-    {
-        // 尝试使用已保存的登录态（仅 token，未保存密码）
-        var session = SessionStore.Load();
-        if (session is null)
-            return;
-
-        LoginStatusText.Foreground = System.Windows.Media.Brushes.Gray;
-        LoginStatusText.Text = "正在使用上次保存的登录态…";
-        LoginButton.IsEnabled = false;
-        try
-        {
-            _client.RestoreSession(session.Value.Token, session.Value.UserId, session.Value.UserName);
-            var sync = await _client.SyncAllAsync();
-            EnterExportPanel(sync);
-        }
-        catch (AuthExpiredException)
-        {
-            SessionStore.Clear();
-            LoginStatusText.Text = "登录态已过期，请重新登录";
-        }
-        catch (Exception ex)
-        {
-            LoginStatusText.Text = $"自动登录失败：{ex.Message}，请重新登录";
-        }
-        finally
-        {
-            LoginButton.IsEnabled = true;
-        }
     }
 
     private void PasswordBox_KeyDown(object sender, KeyEventArgs e)
@@ -87,11 +55,6 @@ public partial class MainWindow : Window
         {
             await _client.LoginAsync(email, password);
             PasswordBox.Clear();
-
-            if (RememberSessionBox.IsChecked == true)
-                SessionStore.Save(_client.Token!, _client.UserId, _client.UserName);
-            else
-                SessionStore.Clear();
 
             var sync = await _client.SyncAllAsync();
             EnterExportPanel(sync);
@@ -125,7 +88,6 @@ public partial class MainWindow : Window
     private void LogoutButton_Click(object sender, RoutedEventArgs e)
     {
         _client.Logout();
-        SessionStore.Clear();
         ExportPanel.Visibility = Visibility.Collapsed;
         LoginPanel.Visibility = Visibility.Visible;
         LoginStatusText.Text = "";
@@ -294,7 +256,6 @@ public partial class MainWindow : Window
 
     private void HandleAuthExpired()
     {
-        SessionStore.Clear();
         MessageBox.Show(this, "登录态已失效，请重新登录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
         LogoutButton_Click(this, new RoutedEventArgs());
     }

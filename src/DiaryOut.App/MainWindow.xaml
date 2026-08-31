@@ -19,8 +19,6 @@
             <TextBlock Text="密码" Margin="0,10,0,4"/>
             <PasswordBox x:Name="PasswordBox" Height="28" VerticalContentAlignment="Center"
                          KeyDown="PasswordBox_KeyDown"/>
-            <CheckBox x:Name="RememberSessionBox" Content="在本机保存登录态（仅保存令牌，不保存密码）"
-                      Margin="0,12,0,0" IsChecked="True"/>
             <Button x:Name="LoginButton" Content="登 录" Height="34" Margin="0,14,0,0"
                     Click="LoginButton_Click"/>
             <TextBlock x:Name="LoginStatusText" Foreground="#B00020" Margin="0,10,0,0"

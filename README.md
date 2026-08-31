@@ -28,7 +28,7 @@ tools/DiaryOut.Smoke/ 冒烟测试控制台（凭据仅来自命令行参数，�
 
 ## 功能（对应需求基线）
 
-- 程序内登录；仅保存 token（DPAPI 加密，`%LocalAppData%\DiaryOut\session.dat`），不保存密码
+- 程序内登录；token 只保存在当前进程内存中，绝不写盘；每次启动程序都必须重新输入账号密码
 - 导出范围：全部 / 日期范围 / 关键词 / 手动勾选
 - 导出格式：HTML（独立简洁样式，离线可看）、Markdown、单篇 PDF、合并 PDF（QuestPDF，中文字体优先微软雅黑）
 - 图片：原图下载到每篇的 `images/` 目录；失败显示占位文字并记入失败清单
