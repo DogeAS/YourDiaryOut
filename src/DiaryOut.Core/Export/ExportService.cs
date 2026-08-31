@@ -33,7 +33,16 @@ public sealed class ExportService
         Report(progress, 0, 0, "正在同步日记数据…");
         var sync = await client.SyncAllAsync(ct).ConfigureAwait(false);
 
+        // 诊断：同步实际返回的数据规模与含图日记数，便于定位"导出很短/无图"
+        var totalDiaries = sync.Diaries.Count;
+        var withImages = sync.Diaries.Count(d => DiaryContentParser.ReferencedImageIds(
+            DiaryContentParser.Parse(d.Content)).Count > 0);
+        Report(progress, 0, 0,
+            $"同步返回：日记 {totalDiaries} 篇（其中含图 {withImages} 篇），图片元数据 {sync.Images.Count} 条");
+
         var diaries = Filter(sync.Diaries, options);
+        if (diaries.Count == 0)
+            Report(progress, 0, 0, "注意：按当前范围过滤后没有可导出的日记（检查日期/关键词/勾选条件）");
         var state = ExportStateStore.Load(options.OutputDir);
         var indexEntries = new List<object>();
 
@@ -256,14 +265,16 @@ public sealed class ExportService
             ct.ThrowIfCancellationRequested();
             if (ctx.DownloadedImages.ContainsKey(imageId) || ctx.FailedImages.ContainsKey(imageId))
                 continue;
-            var downloaded = await client.DownloadImageAsync(diary.User, imageId, ct).ConfigureAwait(false);
+            // 用登录账号 id（client.UserId），不要用 diary.User（配对日记的作者可能不是本人，导致 404）
+            var ownerId = client.UserId != 0 ? client.UserId : diary.User;
+            var downloaded = await client.DownloadImageAsync(ownerId, imageId, ct).ConfigureAwait(false);
             if (downloaded is { } image)
             {
                 ctx.DownloadedImages[imageId] = image;
             }
             else
             {
-                const string reason = "下载失败（重试后仍失败）";
+                var reason = $"下载失败（重试后仍失败）{client.LastImageError ?? ""}";
                 ctx.FailedImages[imageId] = reason;
                 result.Failures.Add(new FailureItem
                 {

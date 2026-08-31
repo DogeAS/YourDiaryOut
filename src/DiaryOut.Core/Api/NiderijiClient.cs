@@ -127,12 +127,13 @@ public sealed class NiderijiClient : IDisposable
     }
 
     /// <summary>
-    /// 下载图片。返回字节与扩展名；HTTP 错误返回 null（由调用方记录失败）。
+    /// 下载图片。返回字节与扩展名；HTTP/网络错误返回 null 并记录失败原因。
     /// </summary>
     public async Task<(byte[] Data, string Extension)?> DownloadImageAsync(
         long userId, long imageId, CancellationToken ct = default)
     {
         var url = $"{FileDomain}/api/image/{userId}/{imageId}/";
+        LastImageError = null;
         try
         {
             return await SendWithRetryForBytesAsync(
@@ -142,11 +143,15 @@ public sealed class NiderijiClient : IDisposable
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            LastImageError = $"{ex.GetType().Name}: {ex.Message}（url={url}）";
             return null;
         }
     }
+
+    /// <summary>最近一次图片下载失败原因（含 HTTP 状态/网络异常与 URL），供诊断。</summary>
+    public string? LastImageError { get; private set; }
 
     private async Task<string> SendWithRetryAsync(
         Func<HttpRequestMessage> requestFactory, bool requireAuth, CancellationToken ct)
